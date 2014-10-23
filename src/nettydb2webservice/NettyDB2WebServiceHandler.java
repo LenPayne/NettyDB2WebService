@@ -43,8 +43,9 @@ public class NettyDB2WebServiceHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) {
+        byte[] CONTENT = "".getBytes();
         if (msg instanceof HttpRequest) {
-            byte[] CONTENT = "Hello World".getBytes();
+            KVPTable kvp = new KVPTable();
             HttpRequest req = (HttpRequest) msg;
 
             if (HttpHeaders.is100ContinueExpected(req)) {
@@ -52,9 +53,16 @@ public class NettyDB2WebServiceHandler extends ChannelInboundHandlerAdapter {
             }
             boolean keepAlive = HttpHeaders.isKeepAlive(req);
             HttpMethod method = req.getMethod();
-            CONTENT = method.name().getBytes();
+            if (req.getUri().equalsIgnoreCase("/api")) {
+                CONTENT = kvp.toJSON().toJSONString().getBytes();
+            }
+            if (req.getUri().matches("/api/(.+)$")) {
+                String[] parts = req.getUri().split("/");
+                String key = parts[parts.length - 1];
+                CONTENT = kvp.toJSON(key).toJSONString().getBytes();
+            }                
             FullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, OK, Unpooled.wrappedBuffer(CONTENT));
-            response.headers().set(CONTENT_TYPE, "text/plain");
+            response.headers().set(CONTENT_TYPE, "application/json");
             response.headers().set(CONTENT_LENGTH, response.content().readableBytes());
 
             if (!keepAlive) {
